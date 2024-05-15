@@ -113,3 +113,13 @@ def isRREFMat (M : Matrix (Fin r) (Fin s) Rat) : Bool :=
         if zeroRowsLast M then
           (nonzColIndices (List.filter (fun x => x.any (fun x => ¬x==0)) (rowListofMat M))).Sorted (·>·)
         else false
+
+
+#eval isRREFMat !![0,1;1,0]
+#eval isRREFMat !![(1:Rat)/2,0,-3,1,0;2,1,0,0,0]
+#eval isRREFMat !![0,0;0,0]
+#eval isRREFMat !![1,2,3;4,5,6;7,8,9]
+#eval isRREFMat !![1,0;0,1]
+
+def C := !![-1,0,1;2,1,0;0,0,(0:Rat)]
+#eval isRREFMat C

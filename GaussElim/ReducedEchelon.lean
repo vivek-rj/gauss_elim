@@ -24,7 +24,7 @@ lemma colListLength_eq_numCol : (colListofMat M).length = s := by simp
 def row_allZerosAfterLastOne (row : List Rat) : Bool :=
   (row.after (fun x => ((row.indexOf x) == row.length-1-((row.reverse).indexOf 1)))).all (fun x => x==0)
 
-def isRRFRow (ri : List Rat) : Bool×(Option Nat) :=
+def isRowReduced_row (ri : List Rat) : Bool×(Option Nat) :=
   if ri.all (fun x => x==0) then (true,none)
   else
     if ri.indexOf 1 = ri.length then (false,none)
@@ -33,14 +33,14 @@ def isRRFRow (ri : List Rat) : Bool×(Option Nat) :=
       then (true,ri.length - 1 - ((ri.reverse).indexOf 1))
       else (false,none)
 
-def isRRFCol (cj : List Rat) : Bool := List.all (List.erase cj 1) (fun x => x==0)
+def isRowReduced_col (cj : List Rat) : Bool := List.all (List.erase cj 1) (fun x => x==0)
 
 --In a matrix that is in row-reduced form, the index of 1 in a row that isn't all zero is less than the length of the row
-lemma nonzIndLe (rl : List Rat) (h : (isRRFRow rl).1 = true) (h' : ¬(rl.all (fun x => x==0))) :
-  (((isRRFRow rl).2).getD 0) < rl.length := by
-  unfold isRRFRow
+lemma indLastOne_lt_rowLength (rl : List Rat) (h : (isRowReduced_row rl).1 = true) (h' : ¬(rl.all (fun x => x==0))) :
+  (((isRowReduced_row rl).2).getD 0) < rl.length := by
+  unfold isRowReduced_row
   split_ifs with h1 h2
-  · have : (isRRFRow rl).1 == false := by unfold isRRFRow; rw [if_neg h', if_pos h1]; rfl
+  · have : (isRowReduced_row rl).1 == false := by unfold isRowReduced_row; rw [if_neg h', if_pos h1]; rfl
     simp at h this; rw [h] at this; contradiction
   · show rl.length - 1 - List.indexOf 1 rl.reverse < rl.length
     rw [Nat.sub_sub]
@@ -52,13 +52,13 @@ lemma nonzIndLe (rl : List Rat) (h : (isRRFRow rl).1 = true) (h' : ¬(rl.all (fu
       by_cases h6 : rl = []
       · rw [h6] at h'; contradiction
       · exact List.length_pos.mpr h6
-  · have : (isRRFRow rl).1 == false := by
-      unfold isRRFRow; rw [if_neg h', if_neg h1, if_neg h2]; rfl
+  · have : (isRowReduced_row rl).1 == false := by
+      unfold isRowReduced_row; rw [if_neg h', if_neg h1, if_neg h2]; rfl
     simp at h this; rw [h] at this; contradiction
 
 def row_allZero (row : List Rat) : Bool := row.all (fun x => (x==0))
 
-def isRRFMatAux (rl : List (List Rat)) (cl : List (List Rat)) (h : ∀ i, (rl.get i).length = cl.length) : Bool :=
+def isRowReducedAux (rl : List (List Rat)) (cl : List (List Rat)) (h : ∀ i, (rl.get i).length = cl.length) : Bool :=
   match rl with
   | [] => true
   | a::as =>
@@ -67,19 +67,19 @@ def isRRFMatAux (rl : List (List Rat)) (cl : List (List Rat)) (h : ∀ i, (rl.ge
       intro i
       obtain ⟨n,hn⟩ := ((a::as).mem_iff_get).mp ((List.subset_cons a as) (h0 i))
       have l1 := h (Fin.castSucc i); have l2 := h n; rw [←l1, hn] at l2; exact l2
-    if h1 : row_allZero a then isRRFMatAux as cl (by intro i; have := h (i.castSucc); rw [← (h0' i)] at this; exact this)
+    if h1 : row_allZero a then isRowReducedAux as cl (by intro i; have := h (i.castSucc); rw [← (h0' i)] at this; exact this)
     else
-      if h2 : (isRRFRow a).1 then
-        have h3 := nonzIndLe a h2 h1
-        have h4 : (isRRFRow a).2.getD 0 < cl.length := by
+      if h2 : (isRowReduced_row a).1 then
+        have h3 := indLastOne_lt_rowLength a h2 h1
+        have h4 : (isRowReduced_row a).2.getD 0 < cl.length := by
           have := h ⟨0,Nat.zero_lt_succ as.length⟩;  simp at this; rw [this] at h3; exact h3
-        if ¬(isRRFCol (cl.get ⟨(((isRRFRow a).2).getD 0),h4⟩)) then false
-        else isRRFMatAux as cl (by intro i; have := h (i.castSucc); rw [← (h0' i)] at this; exact this)
+        if ¬(isRowReduced_col (cl.get ⟨(((isRowReduced_row a).2).getD 0),h4⟩)) then false
+        else isRowReducedAux as cl (by intro i; have := h (i.castSucc); rw [← (h0' i)] at this; exact this)
       else false
 
 --Checks whether matrix is in row-reduced form
-def isRRFMat : Bool :=
-  isRRFMatAux (rowListofMat M) (colListofMat M) (by rw [colListLength_eq_numCol]; exact (rowListofMat_elt_length_eq_numCol M))
+def isRowReduced : Bool :=
+  isRowReducedAux (rowListofMat M) (colListofMat M) (by rw [colListLength_eq_numCol]; exact (rowListofMat_elt_length_eq_numCol M))
 
 /-
 Row-reduced echelon form
@@ -93,8 +93,8 @@ these rows occurs in columns k₁,k₂,...,k_r, then  k₁>k₂>...>k_r
 def nonzColIndices : List (List Rat) → List ℕ
   | [] => []
   | a::as =>
-      if ¬(isRRFRow a).1 then []
-      else [((isRRFRow a).2).getD 0] ++ (nonzColIndices as)
+      if ¬(isRowReduced_row a).1 then []
+      else [((isRowReduced_row a).2).getD 0] ++ (nonzColIndices as)
 
 def isZeroMatrix : Bool := (rowListofMat M).all (fun x => (x.all (fun y => y==0 )))
 
@@ -105,11 +105,17 @@ def zeroRowsLast : Bool :=
   ([indOfLastNonzeroRow]++indsOfZeroRows).Sorted (·≤·)
 
 --Checks whether matrix is in row-reduced echelon form
-def isRREFMat (M : Matrix (Fin r) (Fin s) Rat) : Bool :=
-  if isZeroMatrix M then true
-  else
-    if ¬(isRRFMat M) then false
-    else
-        if zeroRowsLast M then
-          (nonzColIndices (List.filter (fun x => x.any (fun x => ¬x==0)) (rowListofMat M))).Sorted (·>·)
-        else false
+-- def isRowReducedEchelon (M : Matrix (Fin r) (Fin s) Rat) : Bool :=
+--   if isZeroMatrix M then true
+--   else
+--     if ¬(isRowReduced M) then false
+--     else
+--         if zeroRowsLast M then
+--           (nonzColIndices (List.filter (fun x => x.any (fun x => ¬x==0)) (rowListofMat M))).Sorted (·>·)
+--         else false
+
+def isRowReducedEchelon (M : Matrix (Fin r) (Fin s) Rat) : Bool :=
+  (isZeroMatrix M) ∨
+    (isRowReduced M) ∧
+      (zeroRowsLast M) ∧
+        (nonzColIndices (List.filter (fun x => x.any (fun x => ¬x==0)) (rowListofMat M))).Sorted (·>·)
